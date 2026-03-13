@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usina — Three.js Industrial</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Share+Tech+Mono&display=swap');
+:root{
+  --bg:#111209; --panel:#161810; --border:#2e3220;
+  --txt:#ccd8a0; --dim:#60703a; --accent:#e8c840;
+  --green:#5cb85c; --orange:#e8860a; --blue:#4aa0d8; --red:#d84040;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);overflow:hidden;font-family:'Barlow Condensed',sans-serif;color:var(--txt);width:100vw;height:100vh}
+canvas{display:block}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#ffffff14;border-radius:2px}
+*{scrollbar-width:thin;scrollbar-color:#ffffff14 transparent}
+
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+.corner{position:absolute;width:22px;height:22px}
+.tl{top:9px;left:9px;border-top:1px solid #ffffff18;border-left:1px solid #ffffff18}
+.tr{top:9px;right:9px;border-top:1px solid #ffffff18;border-right:1px solid #ffffff18}
+.bl{bottom:9px;left:9px;border-bottom:1px solid #ffffff18;border-left:1px solid #ffffff18}
+.br{bottom:9px;right:9px;border-bottom:1px solid #ffffff18;border-right:1px solid #ffffff18}
+
+#title-bar{position:absolute;top:14px;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;pointer-events:none}
+#title-bar h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;letter-spacing:7px;color:var(--accent);text-shadow:0 0 24px #e8c84055;text-transform:uppercase}
+#title-bar p{font-size:9px;letter-spacing:3px;color:var(--dim);margin-top:2px;font-family:'Share Tech Mono',monospace}
+
+.panel{background:rgba(16,18,10,.95);border:1px solid var(--border);border-radius:2px;backdrop-filter:blur(14px);padding:12px 14px;pointer-events:all}
+.panel h2{font-size:9px;letter-spacing:4px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px;font-family:'Share Tech Mono',monospace}
+
+#stage-panel{position:absolute;top:62px;left:14px;width:214px}
+.sr{display:flex;align-items:center;gap:7px;padding:5px 5px;cursor:pointer;border-radius:2px;transition:all .14s;border-left:2px solid transparent;margin-bottom:1px}
+.sr:hover,.sr.on{background:rgba(232,200,64,.05)}
+.sr.on{border-left-color:var(--rc)}
+.sdot{width:7px;height:7px;border-radius:1px;flex-shrink:0}
+.sr.on .sdot{animation:dp .9s ease-in-out infinite}
+@keyframes dp{0%,100%{transform:scale(1)}50%{transform:scale(1.9)}}
+.sl{font-size:11px;color:#8a9460;flex:1;font-family:'Barlow Condensed',sans-serif}
+.sr.on .sl{color:var(--accent)}
+.ss{font-size:8px;letter-spacing:1px;color:#5a6030;font-family:'Share Tech Mono',monospace}
+.ss.run{color:var(--green);animation:bk .8s step-end infinite}
+@keyframes bk{50%{opacity:0}}
+
+#telem{position:absolute;top:62px;right:14px;width:186px}
+.tr2{display:flex;justify-content:space-between;align-items:center;padding:2px 0}
+.tl2{font-size:10px;color:var(--dim);font-family:'Barlow Condensed',sans-serif}
+.tv{font-size:11px;color:var(--accent);font-weight:600;font-family:'Share Tech Mono',monospace}
+.bw{margin:3px 0 6px;height:2px;background:#ffffff0a;border-radius:2px;overflow:hidden}
+.bf{height:100%;border-radius:2px;transition:width .5s}
+
+/* brightness */
+#bright{position:absolute;top:50%;right:14px;transform:translateY(-50%);width:38px;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:all;margin-top:120px}
+#bright label{font-size:7px;letter-spacing:1px;color:var(--dim);font-family:'Share Tech Mono',monospace;text-align:center}
+#bslider{writing-mode:vertical-lr;direction:rtl;appearance:slider-vertical;-webkit-appearance:slider-vertical;width:8px;height:110px;cursor:pointer;accent-color:var(--accent)}
+#bval{font-size:9px;color:var(--accent);font-family:'Share Tech Mono',monospace;font-weight:600}
+
+#info-panel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);min-width:360px;max-width:600px}
+#info-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:3px;color:var(--accent);margin-bottom:4px;text-transform:uppercase}
+#info-desc{font-size:9px;color:#8a9460;line-height:1.75;font-family:'Share Tech Mono',monospace}
+
+#controls{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:4px;pointer-events:all}
+.cb{background:rgba(16,18,10,.92);border:1px solid var(--border);color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;padding:6px 11px;cursor:pointer;border-radius:2px;transition:all .14s;text-align:center}
+.cb:hover{background:rgba(232,200,64,.1);border-color:var(--accent)}
+.cb.on{background:rgba(232,200,64,.14);border-color:var(--accent)}
+
+#sbadge{position:absolute;top:54px;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+#sbadge span{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:4px;padding:3px 13px;border-radius:2px;border:1px solid var(--accent);color:var(--accent);text-transform:uppercase}
+
+#tooltip{position:fixed;display:none;background:rgba(16,18,10,.97);border:1px solid var(--border);border-radius:2px;padding:8px 12px;pointer-events:none;z-index:50;max-width:220px}
+#tooltip h3{font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;color:var(--accent);margin-bottom:3px;text-transform:uppercase}
+#tooltip p{font-size:8px;color:#8a9460;line-height:1.6;font-family:'Share Tech Mono',monospace}
+
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:14px;transition:opacity .8s}
+#loading h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;letter-spacing:10px;color:var(--accent);text-shadow:0 0 28px var(--accent);text-transform:uppercase}
+#loading p{font-size:9px;letter-spacing:3px;color:var(--dim);font-family:'Share Tech Mono',monospace}
+.lb{width:320px;height:2px;background:#ffffff0a;border-radius:2px;overflow:hidden}
+.lf{height:100%;background:linear-gradient(90deg,#5cb85c,#e8c840,#e8860a);box-shadow:0 0 7px var(--accent);animation:la 3s ease forwards}
+@keyframes la{from{width:0}to{width:100%}}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>USINA FLOW</h1>
+  <p>CONSTRUINDO PLANTA · THREE.JS INDUSTRIAL</p>
+  <div class="lb"><div class="lf"></div></div>
+  <p id="lstat" style="margin-top:3px;color:#3a4018;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px">modelando equipamentos...</p>
+</div>
+
+<div id="tooltip"><h3 id="tt-name"></h3><p id="tt-desc"></p></div>
+
+<div id="hud">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+
+  <div id="title-bar">
+    <h1>Usina Industrial</h1>
+    <p>AÇÚCAR & ETANOL · THREE.JS · CÂMERA LIVRE</p>
+  </div>
+  <div id="sbadge"><span id="sbadge-txt"></span></div>
+
+  <div id="stage-panel" class="panel">
+    <h2>// Etapas</h2>
+    <div class="sr on" id="sr0" style="--rc:#78c878" onclick="focusStage(0)"><div class="sdot" style="background:#78c878"></div><span class="sl">Recepção & Moagem</span><span class="ss run" id="ss0">ATIVO</span></div>
+    <div class="sr" id="sr1" style="--rc:#e8c840" onclick="focusStage(1)"><div class="sdot" style="background:#e8c840"></div><span class="sl">Tratamento do Caldo</span><span class="ss" id="ss1">IDLE</span></div>
+    <div class="sr" id="sr2" style="--rc:#e8860a" onclick="focusStage(2)"><div class="sdot" style="background:#e8860a"></div><span class="sl">Fermentação</span><span class="ss" id="ss2">IDLE</span></div>
+    <div class="sr" id="sr3" style="--rc:#4aa0d8" onclick="focusStage(3)"><div class="sdot" style="background:#4aa0d8"></div><span class="sl">Destilação (Etanol)</span><span class="ss" id="ss3">IDLE</span></div>
+    <div class="sr" id="sr4" style="--rc:#f0f080" onclick="focusStage(4)"><div class="sdot" style="background:#f0f080"></div><span class="sl">Cozimento & Açúcar</span><span class="ss" id="ss4">IDLE</span></div>
+    <div class="sr" id="sr5" style="--rc:#d84040" onclick="focusStage(5)"><div class="sdot" style="background:#d84040"></div><span class="sl">Cogeração & Vapor</span><span class="ss" id="ss5">IDLE</span></div>
+  </div>
+
+  <div id="telem" class="panel">
+    <h2>// Telemetria</h2>
+    <div class="tr2"><span class="tl2">Moagem</span><span class="tv">12.000 t/dia</span></div>
+    <div class="tr2"><span class="tl2">Etanol</span><span class="tv" id="t-eth">— m³/dia</span></div>
+    <div class="tr2"><span class="tl2">Açúcar</span><span class="tv" id="t-sug">— t/dia</span></div>
+    <div class="tr2"><span class="tl2">Vapor</span><span class="tv" id="t-stm">— t/h</span></div>
+    <div class="tr2"><span class="tl2">Eficiência</span><span class="tv" id="t-eff">—%</span></div>
+    <div class="bw"><div class="bf" id="t-bar" style="width:0%;background:linear-gradient(90deg,#5cb85c,#e8c840)"></div></div>
+    <div class="tr2"><span class="tl2">Etapa</span><span class="tv" id="t-stage" style="font-size:9px">RECEPÇÃO</span></div>
+  </div>
+
+  <div id="bright" class="panel" style="padding:10px 8px">
+    <span style="font-size:11px">☀️</span>
+    <label>LUZ</label>
+    <input type="range" id="bslider" min="10" max="100" value="65" oninput="setBrightness(this.value)">
+    <div id="bval">65%</div>
+  </div>
+
+  <div id="info-panel" class="panel">
+    <div id="info-title">Recepção & Moagem</div>
+    <div id="info-desc">Cana chega em caminhões, pesada na balança rodoviária. Mesa alimentadora distribui para os 5 ternos de moenda — rolos de aço de alta pressão extraem 96% do caldo. Bagaço (30% da cana) segue para caldeiras.</div>
+  </div>
+
+  <div id="controls">
+    <button class="cb on" id="btnRun" onclick="toggleRun()">⏸ PAUSAR</button>
+    <button class="cb" id="btnAuto" onclick="toggleAuto()">◎ AUTO-TOUR</button>
+    <button class="cb" onclick="nextStage()">▶ PRÓXIMA</button>
+    <button class="cb" onclick="resetCam()">⊹ CÂMERA</button>
+  </div>
+</div>
+
+<!-- Three.js r158 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════
+//  THREE.JS SETUP
+// ══════════════════════════════════════════════════════
+const renderer = new THREE.WebGLRenderer({antialias:true, logarithmicDepthBuffer:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.insertBefore(renderer.domElement, document.getElementById('tooltip'));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1e10);
+scene.fog = new THREE.FogExp2(0x1e2412, 0.008);
+
+// ── Camera ───────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(60, 45, 60);
+camera.lookAt(0, 0, 0);
+
+// ── Simple OrbitControls (inline, no import needed) ──
+let orb = {dragging:false, rmb:false, lx:0, ly:0,
+  theta: Math.PI*0.35, phi: Math.PI*0.28, radius:85,
+  tx:0, ty:3, tz:0, targetTheta:Math.PI*0.35, targetPhi:Math.PI*0.28,
+  targetRadius:85, targetTx:0, targetTy:3, targetTz:0};
+
+function updateCamera(){
+  orb.theta  += (orb.targetTheta  - orb.theta)  * 0.08;
+  orb.phi    += (orb.targetPhi    - orb.phi)    * 0.08;
+  orb.radius += (orb.targetRadius - orb.radius) * 0.08;
+  orb.tx     += (orb.targetTx     - orb.tx)     * 0.08;
+  orb.ty     += (orb.targetTy     - orb.ty)     * 0.08;
+  orb.tz     += (orb.targetTz     - orb.tz)     * 0.08;
+  orb.phi = Math.max(0.1, Math.min(Math.PI*0.42, orb.phi));
+  orb.radius = Math.max(6, Math.min(160, orb.radius));
+  const x = orb.tx + orb.radius * Math.sin(orb.phi) * Math.sin(orb.theta);
+  const y = orb.ty + orb.radius * Math.cos(orb.phi);
+  const z = orb.tz + orb.radius * Math.sin(orb.phi) * Math.cos(orb.theta);
+  camera.position.set(x, y, z);
+  camera.lookAt(orb.tx, orb.ty, orb.tz);
+}
+renderer.domElement.addEventListener('mousedown', e=>{
+  orb.dragging=true; orb.rmb=(e.button===2); orb.lx=e.clientX; orb.ly=e.clientY;
+  if(e.button===1) e.preventDefault();
+});
+renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
+window.addEventListener('mouseup', ()=>orb.dragging=false);
+window.addEventListener('mousemove', e=>{
+  if(!orb.dragging) return;
+  const dx=e.clientX-orb.lx, dy=e.clientY-orb.ly;
+  orb.lx=e.clientX; orb.ly=e.clientY;
+  if(orb.rmb || e.shiftKey){
+    const right = new THREE.Vector3(); camera.getWorldDirection(right);
+    right.cross(camera.up).normalize();
+    const up2 = new THREE.Vector3(0,1,0);
+    orb.targetTx -= (right.x*dx - up2.x*dy)*0.05;
+    orb.targetTy += dy*0.05;
+    orb.targetTz -= (right.z*dx - up2.z*dy)*0.05;
+  } else {
+    orb.targetTheta -= dx*0.008;
+    orb.targetPhi   += dy*0.008;
+  }
+});
+renderer.domElement.addEventListener('wheel', e=>{
+  orb.targetRadius *= e.deltaY>0?1.12:0.9;
+  orb.targetRadius = Math.max(6,Math.min(160,orb.targetRadius));
+},{passive:true});
+// touch
+let t0x=0,t0y=0,tDist0=0;
+renderer.domElement.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){orb.dragging=true;orb.lx=e.touches[0].clientX;orb.ly=e.touches[0].clientY;}
+  if(e.touches.length===2){tDist0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+},{passive:true});
+renderer.domElement.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&orb.dragging){
+    const dx=e.touches[0].clientX-orb.lx,dy=e.touches[0].clientY-orb.ly;
+    orb.lx=e.touches[0].clientX;orb.ly=e.touches[0].clientY;
+    orb.targetTheta-=dx*0.008; orb.targetPhi+=dy*0.008;
+  }
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    orb.targetRadius*=tDist0/d; tDist0=d;
+  }
+},{passive:true});
+renderer.domElement.addEventListener('touchend',()=>orb.dragging=false,{passive:true});
+
+// ══════════════════════════════════════════════════════
+//  LIGHTS
+// ══════════════════════════════════════════════════════
+const sunLight = new THREE.DirectionalLight(0xfff5e0, 2.0);
+sunLight.position.set(40, 60, 30);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048,2048);
+sunLight.shadow.camera.near = 1;
+sunLight.shadow.camera.far  = 200;
+sunLight.shadow.camera.left = sunLight.shadow.camera.bottom = -80;
+sunLight.shadow.camera.right = sunLight.shadow.camera.top  = 80;
+sunLight.shadow.bias = -0.001;
+scene.add(sunLight);
+
+const ambLight = new THREE.AmbientLight(0x8aa060, 0.7);
+scene.add(ambLight);
+
+const fillLight = new THREE.DirectionalLight(0x6080c0, 0.3);
+fillLight.position.set(-30, 20, -20);
+scene.add(fillLight);
+
+window.setBrightness = v => {
+  const f = v/65;
+  sunLight.intensity = 2.0*f;
+  ambLight.intensity = 0.7*f;
+  fillLight.intensity = 0.3*f;
+  document.getElementById('bval').textContent = v+'%';
+};
+
+// ══════════════════════════════════════════════════════
+//  MATERIAL LIBRARY
+// ══════════════════════════════════════════════════════
+const MAT = {
+  steel:    new THREE.MeshStandardMaterial({color:0x7a8a80, metalness:.85, roughness:.3}),
+  steelDark:new THREE.MeshStandardMaterial({color:0x4a5248, metalness:.8,  roughness:.4}),
+  steelRust:new THREE.MeshStandardMaterial({color:0x7a5030, metalness:.5,  roughness:.7}),
+  steelNew: new THREE.MeshStandardMaterial({color:0xa0b0a8, metalness:.9,  roughness:.2}),
+  concrete: new THREE.MeshStandardMaterial({color:0x8a8878, metalness:.0,  roughness:.9}),
+  concreteFloor: new THREE.MeshStandardMaterial({color:0x6a6858, metalness:.0, roughness:.95}),
+  rubber:   new THREE.MeshStandardMaterial({color:0x1a1a18, metalness:.0,  roughness:.95}),
+  copper:   new THREE.MeshStandardMaterial({color:0x8a5030, metalness:.9,  roughness:.3}),
+  copperOx: new THREE.MeshStandardMaterial({color:0x4a7850, metalness:.6,  roughness:.5}),
+  yellow:   new THREE.MeshStandardMaterial({color:0xe8c030, metalness:.3,  roughness:.5}),
+  orange:   new THREE.MeshStandardMaterial({color:0xd86010, metalness:.2,  roughness:.6}),
+  white:    new THREE.MeshStandardMaterial({color:0xdadad0, metalness:.1,  roughness:.7}),
+  ground:   new THREE.MeshStandardMaterial({color:0x3a4028, metalness:.0,  roughness:1.0}),
+  asphalt:  new THREE.MeshStandardMaterial({color:0x282a20, metalness:.0,  roughness:.95}),
+  cane:     new THREE.MeshStandardMaterial({color:0x6a8030, metalness:.0,  roughness:.9}),
+  juice:    new THREE.MeshStandardMaterial({color:0xc0d840, metalness:.1,  roughness:.4, transparent:true, opacity:.7}),
+  ethanol:  new THREE.MeshStandardMaterial({color:0xa0c8e0, metalness:.1,  roughness:.2, transparent:true, opacity:.6}),
+  bagasse:  new THREE.MeshStandardMaterial({color:0x887040, metalness:.0,  roughness:.95}),
+  redPipe:  new THREE.MeshStandardMaterial({color:0xc03020, metalness:.7,  roughness:.4}),
+  bluePipe: new THREE.MeshStandardMaterial({color:0x2060a0, metalness:.7,  roughness:.4}),
+  greenPipe:new THREE.MeshStandardMaterial({color:0x208040, metalness:.7,  roughness:.4}),
+  glass:    new THREE.MeshStandardMaterial({color:0x90c8e0, metalness:.0,  roughness:.05, transparent:true, opacity:.35}),
+  firebox:  new THREE.MeshStandardMaterial({color:0xff4400, emissive:new THREE.Color(0xff3300), emissiveIntensity:1.5, transparent:true, opacity:.6}),
+  glowYellow:new THREE.MeshStandardMaterial({color:0xffe040, emissive:new THREE.Color(0xffc000), emissiveIntensity:.8}),
+};
+
+// ══════════════════════════════════════════════════════
+//  GEOMETRY HELPERS
+// ══════════════════════════════════════════════════════
+function mesh(geo, mat2, parent, x=0,y=0,z=0, rx=0,ry=0,rz=0){
+  const m = new THREE.Mesh(geo, mat2);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  if(parent) parent.add(m); else scene.add(m);
+  return m;
+}
+function grp(parent){ const g=new THREE.Group(); if(parent) parent.add(g); else scene.add(g); return g; }
+
+// Pipe between two points
+function pipe(from, to, r, mat2, parent){
+  const dir = new THREE.Vector3().subVectors(to,from);
+  const len = dir.length();
+  const mid = new THREE.Vector3().addVectors(from,to).multiplyScalar(.5);
+  const geo = new THREE.CylinderGeometry(r,r,len,10,1);
+  const m = new THREE.Mesh(geo, mat2);
+  m.position.copy(mid);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
+  m.castShadow=true; m.receiveShadow=true;
+  if(parent) parent.add(m); else scene.add(m);
+  return m;
+}
+
+// Flange ring
+function flange(r, t, mat2, parent, x=0,y=0,z=0){
+  const geo = new THREE.TorusGeometry(r+.04, t, 8, 24);
+  return mesh(geo, mat2, parent, x,y,z, Math.PI/2,0,0);
+}
+
+// Elbow — quarter-circle tube
+function elbow(r, tubeR, mat2, parent, x=0,y=0,z=0, ry=0){
+  const path = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0,r,0), new THREE.Vector3(0,r,r), new THREE.Vector3(r,r/2,r)
+  );
+  const geo = new THREE.TubeGeometry(path,12,tubeR,8,false);
+  const m = new THREE.Mesh(geo, mat2);
+  m.position.set(x,y,z); m.rotation.y=ry;
+  m.castShadow=true; if(parent) parent.add(m); else scene.add(m);
+  return m;
+}
+
+// Helix staircase
+function helixStair(rCenter, h, turns, mat2, parent){
+  const pts=[];
+  const steps=turns*20;
+  for(let i=0;i<=steps;i++){
+    const a=i/steps*Math.PI*2*turns;
+    const y=i/steps*h;
+    pts.push(new THREE.Vector3(Math.cos(a)*(rCenter+.3), y, Math.sin(a)*(rCenter+.3)));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const geo = new THREE.TubeGeometry(curve,steps*2,.04,4,false);
+  const m = new THREE.Mesh(geo, mat2);
+  m.castShadow=true; if(parent) parent.add(m); else scene.add(m);
+  // handrail
+  const hpts=pts.map(p=>new THREE.Vector3(Math.cos(Math.atan2(p.z,p.x))*(rCenter+.55),p.y+.7,Math.sin(Math.atan2(p.z,p.x))*(rCenter+.55)));
+  const hcurve=new THREE.CatmullRomCurve3(hpts);
+  const hgeo=new THREE.TubeGeometry(hcurve,steps*2,.025,4,false);
+  const hm=new THREE.Mesh(hgeo,mat2); hm.castShadow=true;
+  if(parent) parent.add(hm); else scene.add(hm);
+  return m;
+}
+
+// I-beam segment
+function ibeam(len, mat2, parent, x=0,y=0,z=0, ry=0){
+  const g=grp(parent);
+  g.position.set(x,y,z); g.rotation.y=ry;
+  // web
+  mesh(new THREE.BoxGeometry(.06,len,.3), mat2, g);
+  // flanges
+  mesh(new THREE.BoxGeometry(.3,.04,len), mat2, g, 0,0,0, Math.PI/2,0,0);
+  return g;
+}
+
+// ══════════════════════════════════════════════════════
+//  GROUND & INFRASTRUCTURE
+// ══════════════════════════════════════════════════════
+function buildGround(){
+  // Main concrete slab
+  mesh(new THREE.BoxGeometry(160,0.3,140), MAT.concreteFloor, null, 0,-0.15,0);
+
+  // Road network (asphalt darker)
+  [[-25,70],[-25,-70],[25,70],[25,-70]].forEach(([x,w])=>{
+    mesh(new THREE.BoxGeometry(8,0.04,140), MAT.asphalt, null, x,0,0);
+  });
+  mesh(new THREE.BoxGeometry(160,0.04,8), MAT.asphalt, null, 0,0,20);
+  mesh(new THREE.BoxGeometry(160,0.04,8), MAT.asphalt, null, 0,0,-20);
+
+  // Pipe rack supports (concrete posts across plant)
+  for(let x=-40;x<=40;x+=20){
+    mesh(new THREE.BoxGeometry(1,8,1), MAT.concrete, null, x,4,0);
+    mesh(new THREE.BoxGeometry(42,0.3,0.3), MAT.steelDark, null, x,8,0);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  EQUIPMENT BUILDERS
+// ══════════════════════════════════════════════════════
+
+// ── 1. CANE TRUCK ────────────────────────────────────
+function buildTruck(px, pz, ry=0){
+  const g = grp(null); g.position.set(px,0,pz); g.rotation.y=ry;
+
+  // chassis frame
+  mesh(new THREE.BoxGeometry(2.4,.25,9), MAT.steelDark, g, 0,.35,0);
+  // wheels (4 axles)
+  [[-4,0],[-2.5,0],[2,0],[3.5,0]].forEach(([zo,yo])=>{
+    [-1.3,1.3].forEach(xo=>{
+      const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,.28,20),MAT.rubber);
+      wheel.position.set(xo,.5,zo); wheel.rotation.z=Math.PI/2; wheel.castShadow=true; g.add(wheel);
+      const hub=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.3,10),MAT.steelNew);
+      hub.position.set(xo,.5,zo); hub.rotation.z=Math.PI/2; hub.castShadow=true; g.add(hub);
+    });
+  });
+  // cab
+  mesh(new THREE.BoxGeometry(2.4,2.2,2.6), MAT.steelDark, g, 0,1.5,3.8);
+  mesh(new THREE.BoxGeometry(2.2,1.2,2.4), MAT.glass, g, 0,2.3,3.7);
+  // exhaust
+  mesh(new THREE.CylinderGeometry(.06,.06,1.2,8), MAT.steelDark, g, -.9,3,3.5);
+  // cargo bed with sugarcane
+  mesh(new THREE.BoxGeometry(2.2,.15,6.5), MAT.steelDark, g, 0,.5,-1);
+  mesh(new THREE.BoxGeometry(.15,1.2,6.5), MAT.steelDark, g, -1,.9,-1);
+  mesh(new THREE.BoxGeometry(.15,1.2,6.5), MAT.steelDark, g,  1,.9,-1);
+  // Cane pile
+  for(let i=0;i<12;i++){
+    const cx=(Math.random()-.5)*1.6, cz=(Math.random()-.5)*5.5, cr=Math.random()*.08+.06;
+    const cl=3+Math.random()*2;
+    const cm=new THREE.Mesh(new THREE.CylinderGeometry(cr,cr,cl,6),MAT.cane);
+    cm.position.set(cx,.7+i*.1,cz); cm.rotation.z=(Math.random()-.5)*.6; cm.castShadow=true; g.add(cm);
+  }
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;}});
+  return g;
+}
+
+// ── 2. CONVEYOR BELT ─────────────────────────────────
+function buildConveyor(len, width=2, tilt=0, mat2=MAT.steelDark){
+  const g=grp(null);
+  // Side frames (I-beam profile)
+  [-width/2, width/2].forEach(xo=>{
+    mesh(new THREE.BoxGeometry(.12,.35,len), MAT.steelDark, g, xo,.175,0);
+    // legs every 3m
+    for(let z=-len/2+1.5; z<len/2; z+=3){
+      mesh(new THREE.BoxGeometry(.1,1.5,.1), MAT.steel, g, xo,-0.6,z);
+      // cross brace
+      mesh(new THREE.BoxGeometry(width+.15,.08,.08), MAT.steel, g, 0,-0.3,z);
+    }
+  });
+  // Idler rollers every 0.6m
+  for(let z=-len/2+.3; z<len/2; z+=.6){
+    const rol=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,width+.1,10), MAT.steel);
+    rol.position.set(0,.38,z); rol.rotation.z=Math.PI/2; rol.castShadow=true; g.add(rol);
+  }
+  // Belt (top run)
+  mesh(new THREE.BoxGeometry(width-.1,.06,len), MAT.rubber, g, 0,.42,0);
+  // Return rollers (bottom)
+  for(let z=-len/2+.9; z<len/2; z+=1.8){
+    const rr=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,width+.1,8),MAT.steelDark);
+    rr.position.set(0,-.05,z); rr.rotation.z=Math.PI/2; rr.castShadow=true; g.add(rr);
+  }
+  // Drive pulley
+  const dp=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,width+.1,16),MAT.steel);
+  dp.position.set(0,.38,-len/2+.1); dp.rotation.z=Math.PI/2; g.add(dp);
+  const tp=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,width+.1,16),MAT.steel);
+  tp.position.set(0,.38,len/2-.1); tp.rotation.z=Math.PI/2; g.add(tp);
+  // Motor
+  mesh(new THREE.BoxGeometry(.6,.5,.8), MAT.steelDark, g, -width/2-.4,.1,-len/2+.5);
+  g.rotation.x=tilt;
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;}});
+  return g;
+}
+
+// ── 3. MILL ROLLER (terno de moenda) ─────────────────
+function buildMillRoller(px, py, pz){
+  const g=grp(null); g.position.set(px,py,pz);
+  // Mill housing
+  mesh(new THREE.BoxGeometry(2.2,2.8,3.2), MAT.steelDark, g, 0,1.4,0);
+  mesh(new THREE.BoxGeometry(2,2.5,3), MAT.steel, g, 0,1.5,0);
+  // 3 rollers (top, back-top, front-bottom)
+  [[0,2.4,0],[-.7,1.3,.7],[.7,1.3,-.7]].forEach(([x,y,z],i)=>{
+    const r=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,3.1,20),MAT.steelNew);
+    r.position.set(x,y,z); r.rotation.z=Math.PI/2; r.castShadow=true; g.add(r);
+    // flutes on roller
+    for(let a=0;a<12;a++){
+      const angle=a/12*Math.PI*2;
+      const f=new THREE.Mesh(new THREE.BoxGeometry(.05,.05,3.1),MAT.steel);
+      f.position.set(x+Math.cos(angle)*.52,y+Math.sin(angle)*.52,z);
+      f.rotation.set(0,0,angle); f.castShadow=true; g.add(f);
+    }
+  });
+  // Bearing housings
+  [[-1.6,.6],[-1.6,1.5],[1.6,.6],[1.6,1.5]].forEach(([xo,yo])=>{
+    mesh(new THREE.BoxGeometry(.4,.5,.5), MAT.steel, g, xo,yo,0);
+  });
+  // Hydraulic cylinder (top roller pressure)
+  mesh(new THREE.CylinderGeometry(.12,.12,1.2,8), MAT.steelDark, g, 0,3.2,0);
+  mesh(new THREE.CylinderGeometry(.08,.08,.6,8), MAT.steel, g, 0,3.8,0);
+  // Gearbox
+  mesh(new THREE.BoxGeometry(.9,.9,.9), MAT.steelDark, g, 1.5,.9,-1);
+  mesh(new THREE.CylinderGeometry(.3,.3,.5,16), MAT.steel, g, 2.2,.9,-1);
+  // Tag
+  g.userData = {label:'Terno de Moenda', desc:'3 rolos de aço fundido. Pressão 200 tf. Extração 96% caldo.'};
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  return g;
+}
+
+// ── 4. FERMENTATION VESSEL (dorna) ───────────────────
+function buildDorna(px, pz, r=2.8, h=6){
+  const g=grp(null); g.position.set(px,0,pz);
+
+  // Shell using LatheGeometry profile
+  const pts=[];
+  pts.push(new THREE.Vector2(r*.3, 0));         // cone bottom
+  pts.push(new THREE.Vector2(r, h*.12));        // shoulder
+  pts.push(new THREE.Vector2(r, h*.88));        // cylindrical body
+  pts.push(new THREE.Vector2(r*.95, h*.92));    // top taper
+  pts.push(new THREE.Vector2(r*.6, h));         // top opening
+  const shell = new THREE.Mesh(new THREE.LatheGeometry(pts,36), MAT.steelDark);
+  shell.castShadow=true; shell.receiveShadow=true; g.add(shell);
+
+  // Insulation bands
+  for(let y=h*.2;y<h*.85;y+=h*.15){
+    flange(r+.04, .06, MAT.steel, g, 0,y,0);
+  }
+
+  // Top dome
+  const domePts=[];
+  for(let i=0;i<=8;i++){ const a=i/8*Math.PI/2; domePts.push(new THREE.Vector2(Math.cos(a)*(r*.58),h+Math.sin(a)*(r*.4))); }
+  const dome=new THREE.Mesh(new THREE.LatheGeometry(domePts,36), MAT.steelDark);
+  dome.castShadow=true; g.add(dome);
+
+  // Manhole
+  mesh(new THREE.CylinderGeometry(.35,.35,.25,16), MAT.steel, g, 0,h+.4,r*.3);
+  mesh(new THREE.CylinderGeometry(.36,.36,.06,16), MAT.steelDark, g, 0,h+.5,r*.3);
+
+  // Vent/CO2 outlet
+  mesh(new THREE.CylinderGeometry(.12,.12,.8,8), MAT.steel, g, r*.4,h+.55,0);
+  elbow(.3,.1,MAT.steel,g, r*.4,h+.7,.3);
+
+  // Agitator shaft + impellers
+  mesh(new THREE.CylinderGeometry(.06,.06,h*.85,8), MAT.steelNew, g, 0,h*.12+.02,0);
+  [h*.3, h*.55, h*.75].forEach(hy=>{
+    for(let a=0;a<3;a++){
+      const ang=a/3*Math.PI*2;
+      const blade=new THREE.Mesh(new THREE.BoxGeometry(r*.7,.08,.22),MAT.steelNew);
+      blade.position.set(0,hy,0); blade.rotation.y=ang; blade.castShadow=true; g.add(blade);
+    }
+  });
+  // Motor on top
+  mesh(new THREE.CylinderGeometry(.28,.28,.6,12), MAT.steelDark, g, 0,h+.9,0);
+  mesh(new THREE.BoxGeometry(.7,.4,.7), MAT.steelDark, g, 0,h+1.25,0);
+
+  // Helix staircase
+  helixStair(r+.05, h*.9, 1.2, MAT.steel, g);
+
+  // Inlet/outlet nozzles
+  mesh(new THREE.CylinderGeometry(.1,.1,.5,8), MAT.steel, g, r,h*.2,0, 0,0,Math.PI/2);
+  mesh(new THREE.CylinderGeometry(.15,.15,.5,8), MAT.steel, g, 0,0,0);
+
+  // Support legs
+  for(let a=0;a<4;a++){
+    const ang=a/4*Math.PI*2+Math.PI/4;
+    mesh(new THREE.CylinderGeometry(.1,.1,1.5,8), MAT.steelDark, g,
+      Math.cos(ang)*(r*.7), -0.75, Math.sin(ang)*(r*.7), .15,ang,0);
+  }
+
+  g.userData={label:'Dorna de Fermentação',desc:`Ø${(r*2).toFixed(0)}m × ${h}m alt. Levedura Saccharomyces. Ciclo 6–10h. Vinho 8–12% etanol.`};
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  return g;
+}
+
+// ── 5. DISTILLATION COLUMN ───────────────────────────
+function buildDistColumn(px, pz, r=.9, h=14, label='Coluna A', desc=''){
+  const g=grp(null); g.position.set(px,0,pz);
+
+  // Main shell (lathe)
+  const pts=[new THREE.Vector2(r*.1,0)];
+  for(let i=0;i<=20;i++) pts.push(new THREE.Vector2(r, i/20*h));
+  pts.push(new THREE.Vector2(r*.3,h+.5));
+  const shell=new THREE.Mesh(new THREE.LatheGeometry(pts,32), MAT.steel);
+  shell.castShadow=true; shell.receiveShadow=true; g.add(shell);
+
+  // Tray flanges (every 0.7m)
+  for(let y=1;y<h-.5;y+=.7){
+    flange(r,.04, MAT.steelDark, g, 0,y,0);
+  }
+
+  // Skirt support
+  const skirtPts=[new THREE.Vector2(r*.9,0),new THREE.Vector2(r*.9,-2),new THREE.Vector2(r*.95,-2),new THREE.Vector2(r*.95,0)];
+  const skirt=new THREE.Mesh(new THREE.LatheGeometry(skirtPts,32), MAT.concrete);
+  skirt.castShadow=true; g.add(skirt);
+
+  // Insulation layer (translucent white cylinder)
+  const ins=new THREE.Mesh(new THREE.CylinderGeometry(r+.12,r+.12,h*.85,24,1,true), MAT.white);
+  ins.position.y=h*.1; ins.material=ins.material.clone();
+  ins.material.transparent=true; ins.material.opacity=.25; ins.material.side=THREE.BackSide; g.add(ins);
+
+  // Top condenser
+  mesh(new THREE.CylinderGeometry(r*.7,r*.7,1.5,16), MAT.steelDark, g, 0,h+1,0);
+  mesh(new THREE.CylinderGeometry(r*.65,r*.65,1.4,16), MAT.steel, g, 0,h+1,0);
+  // cooling water pipes
+  pipe(new THREE.Vector3(-r*.4,h+1.8,0), new THREE.Vector3(-r*.4,h+2.8,0), .08, MAT.bluePipe, g);
+  pipe(new THREE.Vector3(r*.4,h+1.8,0),  new THREE.Vector3(r*.4,h+2.8,0),  .08, MAT.redPipe, g);
+
+  // Reflux drum (horizontal)
+  const drum=new THREE.Mesh(new THREE.CylinderGeometry(r*.5,r*.5,2.5,16), MAT.steelDark);
+  drum.position.set(r*1.8,h+.8,0); drum.rotation.z=Math.PI/2; drum.castShadow=true; g.add(drum);
+  pipe(new THREE.Vector3(r*.7,h+1,0), new THREE.Vector3(r*1.5,h+.8,0), .08, MAT.steel, g);
+
+  // Feed nozzle mid-column
+  mesh(new THREE.CylinderGeometry(.1,.1,.6,8), MAT.copper, g, r+.3,h*.5,0, 0,0,Math.PI/2);
+  flange(r+.02,.05, MAT.copper, g, 0,h*.5,0);
+
+  // Reboiler (kettle at base)
+  const reb=new THREE.Mesh(new THREE.CylinderGeometry(r*.9,r*.9,2,16), MAT.steelDark);
+  reb.position.set(r*2.2,.8,0); reb.rotation.z=Math.PI/2; reb.castShadow=true; g.add(reb);
+  pipe(new THREE.Vector3(r,0.6,0), new THREE.Vector3(r*1.7,.8,0), .1, MAT.redPipe, g);
+  pipe(new THREE.Vector3(r*1.7,1.6,0), new THREE.Vector3(r,h*.08,0), .1, MAT.steel, g);
+
+  // Ladder (vertical)
+  const ladderH=h+2;
+  mesh(new THREE.BoxGeometry(.04,ladderH,.04), MAT.steelDark, g, r+.25,ladderH/2-.5,-.15);
+  mesh(new THREE.BoxGeometry(.04,ladderH,.04), MAT.steelDark, g, r+.25,ladderH/2-.5, .15);
+  for(let y=.5;y<ladderH;y+=.35)
+    mesh(new THREE.BoxGeometry(.04,.04,.35), MAT.steelDark, g, r+.25,y,0);
+
+  // Platform at 1/3 and 2/3 height
+  [h*.33, h*.66].forEach(hy=>{
+    mesh(new THREE.CylinderGeometry(r+.4,r+.4,.04,32,1,true), MAT.steelDark, g, 0,hy,0);
+    for(let a=0;a<24;a++){
+      const ang=a/24*Math.PI*2;
+      mesh(new THREE.BoxGeometry(.03,.3,.03), MAT.steelDark, g,
+        Math.cos(ang)*(r+.38),hy+.15,Math.sin(ang)*(r+.38));
+    }
+  });
+
+  // Instrumentation (pressure gauge nozzle)
+  [h*.25,h*.6].forEach(hy=>{
+    mesh(new THREE.CylinderGeometry(.04,.04,.4,6), MAT.copper, g, -r-.2,hy,0, 0,0,Math.PI/2);
+    mesh(new THREE.CylinderGeometry(.1,.1,.05,12), MAT.steel, g, -r-.4,hy,0, 0,0,Math.PI/2);
+  });
+
+  g.userData={label, desc};
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  return g;
+}
+
+// ── 6. BOILER ────────────────────────────────────────
+function buildBoiler(px, pz){
+  const g=grp(null); g.position.set(px,0,pz);
+
+  // Main pressure vessel (drum, horizontal)
+  const drumGeo=new THREE.CylinderGeometry(2.2,2.2,12,32);
+  const drum=new THREE.Mesh(drumGeo, MAT.steelDark);
+  drum.position.set(0,8,0); drum.rotation.z=Math.PI/2; drum.castShadow=true; g.add(drum);
+
+  // Drum heads (dished ends using lathe)
+  [-6.1,6.1].forEach(xo=>{
+    const hpts=[]; for(let i=0;i<=10;i++){const a=i/10*Math.PI/2; hpts.push(new THREE.Vector2(Math.cos(a)*2.2, xo<0?-Math.sin(a)*1.2:Math.sin(a)*1.2));}
+    const head=new THREE.Mesh(new THREE.LatheGeometry(hpts,32), MAT.steelDark);
+    head.position.set(0,8,0); head.rotation.z=xo<0?-Math.PI/2:Math.PI/2; head.castShadow=true; g.add(head);
+  });
+
+  // Insulation wrap
+  mesh(new THREE.CylinderGeometry(2.4,2.4,11.8,24,1,true), MAT.white, g, 0,8,0, 0,0,Math.PI/2);
+
+  // Furnace/firebox (big rectangular box)
+  mesh(new THREE.BoxGeometry(10,6,8), MAT.concrete, g, 0,3,0);
+  mesh(new THREE.BoxGeometry(9.6,5.6,7.6), MAT.steelDark, g, 0,3.2,0);
+  // fire glow inside
+  mesh(new THREE.BoxGeometry(8,4,6), MAT.firebox, g, 0,2.5,0);
+
+  // Bagasse feed hopper
+  const hopPts=[new THREE.Vector2(0,0),new THREE.Vector2(1.5,0),new THREE.Vector2(.8,-2.5),new THREE.Vector2(.2,-2.5)];
+  const hop=new THREE.Mesh(new THREE.LatheGeometry(hopPts,4), MAT.steelDark);
+  hop.position.set(-3.5,8,-3); hop.rotation.y=Math.PI/4; hop.castShadow=true; g.add(hop);
+
+  // Superheater tubes (visible through furnace top)
+  for(let i=0;i<5;i++){
+    mesh(new THREE.CylinderGeometry(.06,.06,7,8), MAT.copperOx, g, -4+i*2,6.5,0);
+  }
+
+  // Steam outlet (top of drum)
+  mesh(new THREE.CylinderGeometry(.22,.22,1.5,12), MAT.steel, g, -2,10,0);
+  mesh(new THREE.CylinderGeometry(.22,.22,1.5,12), MAT.steel, g,  2,10,0);
+  // Main steam line
+  pipe(new THREE.Vector3(-2,11.5,0), new THREE.Vector3(0,12.5,0), .2, MAT.steel, g);
+  pipe(new THREE.Vector3(2,11.5,0),  new THREE.Vector3(0,12.5,0), .2, MAT.steel, g);
+  pipe(new THREE.Vector3(0,12.5,0),  new THREE.Vector3(0,12.5,5), .22, MAT.steel, g);
+
+  // Safety valves (top)
+  [0,2,-2].forEach(xo=>{
+    mesh(new THREE.CylinderGeometry(.12,.12,.6,8), MAT.yellow, g, xo,11,0);
+    mesh(new THREE.CylinderGeometry(.18,.1,.25,8), MAT.yellow, g, xo,11.6,0);
+  });
+
+  // Flue gas duct
+  mesh(new THREE.BoxGeometry(3,3,8), MAT.steelDark, g, 0,8.5,4.5);
+  mesh(new THREE.CylinderGeometry(1,1,18,16), MAT.concrete, g, 0,15,4.5);
+
+  // Boiler feed water pump
+  mesh(new THREE.BoxGeometry(1,.8,1.4), MAT.steelDark, g, 4.5,.4,3);
+  mesh(new THREE.CylinderGeometry(.35,.35,.8,12), MAT.steel, g, 4.5,.4,1.8, 0,0,Math.PI/2);
+  pipe(new THREE.Vector3(4.5,.7,2.2), new THREE.Vector3(4.5,5,2.5), .1, MAT.bluePipe, g);
+
+  // External walkway
+  mesh(new THREE.BoxGeometry(12,.06,1.2), MAT.steelDark, g, 0,10.4,-3);
+  for(let x=-5;x<=5;x+=2.5)
+    mesh(new THREE.BoxGeometry(.04,.9,.04), MAT.steel, g, x,10.85,-3.5);
+  mesh(new THREE.BoxGeometry(12,.04,.04), MAT.steel, g, 0,11.3,-3.5);
+
+  // Helix staircase to drum level
+  helixStair(1.8, 9, 1.2, MAT.steel, g);
+
+  // Blowdown valve
+  mesh(new THREE.CylinderGeometry(.12,.12,.5,8), MAT.redPipe, g, -3,1,0, Math.PI/2,0,0);
+  mesh(new THREE.CylinderGeometry(.2,.1,.3,8), MAT.redPipe, g, -3,1,.55, Math.PI/2,0,0);
+
+  g.userData={label:'Caldeira de Alta Pressão',desc:'67 kgf/cm² · 520°C · 250 t vapor/h. Bagaço + palha combustível. Ciclo Rankine.'};
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  return g;
+}
+
+// ── 7. EVAPORATOR ────────────────────────────────────
+function buildEvaporator(px, pz, effect=1){
+  const g=grp(null); g.position.set(px,0,pz);
+  const h=5+effect*.3;
+
+  // Calandria (heat exchanger body)
+  const pts=[new THREE.Vector2(.1,0),new THREE.Vector2(2.5,.3),new THREE.Vector2(2.5,h*.6),new THREE.Vector2(2.3,h),new THREE.Vector2(.8,h+.5)];
+  const shell=new THREE.Mesh(new THREE.LatheGeometry(pts,32), MAT.steelDark);
+  shell.castShadow=true; shell.receiveShadow=true; g.add(shell);
+
+  // Vapor body (top, wider)
+  const vpts=[new THREE.Vector2(.5,h+.4),new THREE.Vector2(2.8,h+.6),new THREE.Vector2(2.8,h+2.4),new THREE.Vector2(.5,h+2.8)];
+  const vbody=new THREE.Mesh(new THREE.LatheGeometry(vpts,32), MAT.steelDark);
+  vbody.castShadow=true; g.add(vbody);
+
+  // Vapor outlet (top)
+  mesh(new THREE.CylinderGeometry(.3,.3,1,12), MAT.steel, g, 0,h+3,0);
+
+  // Condensate drain pipes
+  pipe(new THREE.Vector3(2.2,.5,0), new THREE.Vector3(3.2,.5,0), .1, MAT.bluePipe, g);
+  // Steam inlet
+  pipe(new THREE.Vector3(-2.2,1,0), new THREE.Vector3(-1.5,1.5,0), .15, MAT.redPipe, g);
+
+  // Sight glass
+  mesh(new THREE.CylinderGeometry(.08,.08,.5,8), MAT.glass, g, 2.55,h*.4,0, 0,0,Math.PI/2);
+
+  // Effect label band
+  const band=new THREE.Mesh(new THREE.TorusGeometry(2.55,.04,4,32), MAT.yellow);
+  band.position.y=.3; band.rotation.x=Math.PI/2; g.add(band);
+
+  // Support skirt
+  for(let a=0;a<4;a++){
+    const ang=a/4*Math.PI*2+Math.PI/4;
+    mesh(new THREE.BoxGeometry(.15,2,.15), MAT.steel, g, Math.cos(ang)*1.8,-1,Math.sin(ang)*1.8);
+  }
+
+  g.userData={label:`Evaporador Efeito ${effect}`,desc:`Concentração do caldo. Brix: ${10+effect*10} → ${10+(effect+1)*10}.`};
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  return g;
+}
+
+// ── 8. CENTRIFUGE ─────────────────────────────────────
+function buildCentrifuge(px, pz){
+  const g=grp(null); g.position.set(px,0,pz);
+
+  // Outer casing
+  const casePts=[new THREE.Vector2(.2,0),new THREE.Vector2(1.4,.2),new THREE.Vector2(1.4,1.8),new THREE.Vector2(1.2,2.2),new THREE.Vector2(.3,2.4)];
+  const casing=new THREE.Mesh(new THREE.LatheGeometry(casePts,24), MAT.steelDark);
+  casing.castShadow=true; g.add(casing);
+
+  // Basket inside (visible)
+  const bPts=[new THREE.Vector2(.2,.1),new THREE.Vector2(1.15,.25),new THREE.Vector2(1.15,1.65),new THREE.Vector2(.2,1.8)];
+  const basket=new THREE.Mesh(new THREE.LatheGeometry(bPts,24), MAT.steelNew);
+  basket.castShadow=true; g.add(basket);
+
+  // Screen perforations (visual rings)
+  for(let y=.4;y<1.7;y+=.2)
+    flange(1.1,.02,MAT.steel,g,0,y,0);
+
+  // Top cover
+  mesh(new THREE.CylinderGeometry(1.3,1.3,.12,24), MAT.steel, g, 0,2.28,0);
+  // Feed pipe
+  mesh(new THREE.CylinderGeometry(.1,.1,1,8), MAT.steel, g, 0,2.8,0);
+  // Motor/drive
+  mesh(new THREE.CylinderGeometry(.4,.4,.9,16), MAT.steelDark, g, 0,3.3,0);
+  mesh(new THREE.BoxGeometry(1.2,.5,1.2), MAT.steelDark, g, 0,3.85,0);
+  // Discharge chute
+  mesh(new THREE.BoxGeometry(.8,.8,1.5), MAT.steelDark, g, 0,-.1,1.1);
+  mesh(new THREE.BoxGeometry(.6,.5,1), MAT.steel, g, 0,-.2,2);
+  // Molasses outlet
+  mesh(new THREE.CylinderGeometry(.1,.1,.8,8), MAT.steel, g, 1.3,.5,0, 0,0,Math.PI/2);
+
+  g.userData={label:'Centrífuga de Açúcar',desc:'1200 rpm. Separa cristais (VHP) do mel residual. Ciclo ~40min.'};
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  return g;
+}
+
+// ── 9. STORAGE TANK (floating roof) ──────────────────
+function buildTank(px, pz, r=4, h=8, label='Tanque', desc='', mat2=MAT.steelDark){
+  const g=grp(null); g.position.set(px,0,pz);
+
+  // Shell (lathe, straight cylinder)
+  const pts=[new THREE.Vector2(r-.05,0),new THREE.Vector2(r,0),new THREE.Vector2(r,h),new THREE.Vector2(r-.05,h)];
+  const shell=new THREE.Mesh(new THREE.LatheGeometry(pts,36), mat2);
+  shell.castShadow=true; shell.receiveShadow=true; g.add(shell);
+
+  // Wind girders (stiffening rings)
+  [h*.25,h*.5,h*.75].forEach(hy=>flange(r+.04,.08,MAT.steel,g,0,hy,0));
+
+  // Floating roof
+  mesh(new THREE.CylinderGeometry(r-.1,r-.1,.1,32), MAT.steel, g, 0,h*.7,0);
+  // Pontoons
+  for(let a=0;a<8;a++){
+    const ang=a/8*Math.PI*2;
+    mesh(new THREE.CylinderGeometry(.2,.2,(r*.7),8), MAT.steelDark, g,
+      Math.cos(ang)*(r*.55),h*.72,Math.sin(ang)*(r*.55), 0,ang+Math.PI/2,0);
+  }
+
+  // Fixed roof rim
+  const rimPts=[new THREE.Vector2(r-.05,h),new THREE.Vector2(r+.05,h),new THREE.Vector2(r+.05,h+.3),new THREE.Vector2(r,h+.3)];
+  const rim=new THREE.Mesh(new THREE.LatheGeometry(rimPts,36), MAT.steel);
+  rim.castShadow=true; g.add(rim);
+
+  // Helix staircase
+  helixStair(r+.1, h+.2, 2, MAT.steel, g);
+
+  // Foundation ring beam
+  const fb=new THREE.Mesh(new THREE.TorusGeometry(r+.2,.35,8,36), MAT.concrete);
+  fb.rotation.x=Math.PI/2; fb.position.y=.2; g.add(fb);
+
+  // Nozzle connections
+  [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach(a=>{
+    mesh(new THREE.CylinderGeometry(.1,.1,.5,8), MAT.steel, g,
+      Math.cos(a)*(r+.25), h*.15, Math.sin(a)*(r+.25), 0,a,Math.PI/2);
+  });
+
+  // Breather valve
+  mesh(new THREE.CylinderGeometry(.18,.18,.3,10), MAT.steel, g, 0,h+.42,0);
+  mesh(new THREE.CylinderGeometry(.25,.1,.2,10), MAT.steel, g, 0,h+.65,0);
+
+  g.userData={label, desc};
+  g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  return g;
+}
+
+// ══════════════════════════════════════════════════════
+//  PLANT LAYOUT — PLACE EQUIPMENT
+// ══════════════════════════════════════════════════════
+const stageGroups = [[], [], [], [], [], []];
+
+function buildPlant(){
+  // ── STAGE 0: Reception & Milling ─────────────────
+  // Trucks
+  const t1=buildTruck(-38,-5, Math.PI*.15); stageGroups[0].push(t1);
+  const t2=buildTruck(-38, 8, Math.PI*.1);  stageGroups[0].push(t2);
+
+  // Weighbridge
+  const wb=new THREE.Group(); scene.add(wb);
+  mesh(new THREE.BoxGeometry(10,.4,4), MAT.concrete, wb, -35,0.2,0);
+  mesh(new THREE.BoxGeometry(.3,1.5,.3), MAT.steelDark, wb, -30,.75,0);
+  mesh(new THREE.BoxGeometry(.3,1.5,.3), MAT.steelDark, wb, -40,.75,0);
+  wb.userData={label:'Balança Rodoviária',desc:'Pesagem de 80t. Amostragem pol/fibra.'}; stageGroups[0].push(wb);
+
+  // Unloading crane
+  const crane=new THREE.Group(); scene.add(crane);
+  mesh(new THREE.BoxGeometry(.4,10,.4), MAT.steel, crane, -30,5,-10);
+  mesh(new THREE.BoxGeometry(.4,10,.4), MAT.steel, crane, -22,5,-10);
+  mesh(new THREE.BoxGeometry(10,.3,.4), MAT.steel, crane, -26,10,-10);
+  mesh(new THREE.BoxGeometry(.4,10,.4), MAT.steel, crane, -30,5, 10);
+  mesh(new THREE.BoxGeometry(.4,10,.4), MAT.steel, crane, -22,5, 10);
+  mesh(new THREE.BoxGeometry(10,.3,.4), MAT.steel, crane, -26,10, 10);
+  // cross beams
+  mesh(new THREE.BoxGeometry(10,.3,22), MAT.steelDark, crane, -26,10, 0);
+  crane.userData={label:'Pórtico Descarregador',desc:'Dente metálico empurra a cana para a mesa alimentadora.'}; stageGroups[0].push(crane);
+
+  // Feed table
+  const ft=new THREE.Group(); scene.add(ft);
+  mesh(new THREE.BoxGeometry(18,.5,5), MAT.steel, ft, -28,.25,-5);
+  // slat chains
+  for(let z=-7;z<-2;z+=.5)
+    mesh(new THREE.BoxGeometry(17,.1,.2), MAT.rubber, ft, -28,.52,z);
+  ft.userData={label:'Mesa Alimentadora',desc:'Distribui cana uniformemente para moendas.'}; stageGroups[0].push(ft);
+
+  // Inclined conveyor to mills
+  const ic=buildConveyor(16, 1.8, .2); ic.position.set(-20, 1.2, -3); ic.rotation.y=Math.PI/2; scene.add(ic); stageGroups[0].push(ic);
+
+  // 5 Mill rollers
+  for(let i=0;i<5;i++){
+    const mr=buildMillRoller(-10+i*4, .5, 0); stageGroups[0].push(mr);
+  }
+  // Mill house structure
+  mesh(new THREE.BoxGeometry(24,.3,8), MAT.concrete, null, -6,.15,0);
+  mesh(new THREE.BoxGeometry(.3,5,.3), MAT.steel, null, -18,2.5,-4);
+  mesh(new THREE.BoxGeometry(.3,5,.3), MAT.steel, null, -18,2.5,4);
+  mesh(new THREE.BoxGeometry(.3,5,.3), MAT.steel, null, 6,2.5,-4);
+  mesh(new THREE.BoxGeometry(.3,5,.3), MAT.steel, null, 6,2.5,4);
+  mesh(new THREE.BoxGeometry(26,.15,8), MAT.steelDark, null, -6,5.1,0); // roof
+
+  // Bagasse conveyor out
+  const bc=buildConveyor(20, 1.4, 0); bc.position.set(16,.6,-8); bc.rotation.y=Math.PI/2; scene.add(bc); stageGroups[0].push(bc);
+
+  // ── STAGE 1: Treatment ───────────────────────────
+  // Juice trough
+  mesh(new THREE.BoxGeometry(.8,.8,20), MAT.steel, null, -6,.6,-3);
+  // Juice heaters
+  const jh1=buildEvaporator(2, 8, 1); jh1.scale.set(.7,.7,.7); scene.add(jh1); stageGroups[1].push(jh1);
+  const jh2=buildEvaporator(7, 8, 2); jh2.scale.set(.7,.7,.7); scene.add(jh2); stageGroups[1].push(jh2);
+
+  // Clarifier (decanter) — large tank with cone base
+  const clf=new THREE.Group(); scene.add(clf); clf.position.set(14,0,8);
+  const cshell=new THREE.Mesh(new THREE.CylinderGeometry(4,4,7,32), MAT.steelDark);
+  cshell.position.y=3.5; clf.add(cshell);
+  const ccone=new THREE.Mesh(new THREE.CylinderGeometry(4,.4,3,32), MAT.steelDark);
+  ccone.position.y=1.5; clf.add(ccone);
+  mesh(new THREE.CylinderGeometry(3.9,3.9,.1,32), MAT.steel, clf, 0,7.1,0);
+  mesh(new THREE.CylinderGeometry(.3,.3,4,8), MAT.steel, clf, 0,5.5,0); // central shaft
+  // rake arms
+  for(let a=0;a<4;a++){const ang=a/4*Math.PI*2; mesh(new THREE.BoxGeometry(3.5,.08,.12), MAT.steel, clf, Math.cos(ang)*1.75,1.8,Math.sin(ang)*1.75, 0,ang,0);}
+  clf.userData={label:'Clarificador Contínuo',desc:'Decantação. Caldo clarificado + torta de filtro.'}; stageGroups[1].push(clf);
+
+  // Lime tank
+  const lt=buildTank(20,4,1.2,4,'Tanque de Cal','Cal virgem para caleagem pH 7.0.',MAT.white); scene.add(lt); stageGroups[1].push(lt);
+
+  // Filter (rotary vacuum)
+  const rf=new THREE.Group(); scene.add(rf); rf.position.set(22,0,10);
+  const rfd=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,4,24), MAT.steelDark);
+  rfd.position.set(0,2,0); rfd.rotation.z=Math.PI/2; rf.add(rfd);
+  mesh(new THREE.BoxGeometry(5,2.5,2.5), MAT.steel, rf, 0,.8,0);
+  rf.userData={label:'Filtro Rotativo a Vácuo',desc:'Separa torta de filtro (adubo orgânico) do caldo residual.'}; stageGroups[1].push(rf);
+
+  // ── STAGE 2: Fermentation ────────────────────────
+  const dornPos=[[-8,25],[-2,25],[4,25],[-8,34],[-2,34],[4,34]];
+  dornPos.forEach(([x,z])=>{
+    const d=buildDorna(x,z, 2.6, 6); scene.add(d); stageGroups[2].push(d);
+  });
+  // CO2 scrubber
+  const co2=buildDistColumn(-14,30, .6,5,'Lavador CO₂','Remove H₂S e CO₂ antes de liberar.'); scene.add(co2); stageGroups[2].push(co2);
+  // Wine tank
+  const wt=buildTank(10,30,3,7,'Cuba de Vinho','Acúmulo vinho 8–12% etanol.',MAT.steelDark); scene.add(wt); stageGroups[2].push(wt);
+  // Yeast separator
+  const ys=buildCentrifuge(10,24); ys.scale.setScalar(.8); scene.add(ys); stageGroups[2].push(ys);
+
+  // ── STAGE 3: Distillation ────────────────────────
+  const colDefs=[
+    [18,12,.8,12,'Coluna A','Esgotamento do vinho. Vinhaça base.'],
+    [22,12,.6,9,'Coluna A1','Epuração. Remoção álcoois superiores.'],
+    [26,12,.95,14,'Coluna B','Retificação. AEHC 96°GL.'],
+    [30,12,.65,10,'Coluna B1','Concentração de impurezas.'],
+    [34,12,.75,12,'Coluna D','Desidratação. AEAC 99,7°GL.'],
+  ];
+  colDefs.forEach(([x,z,r,h,lbl,desc2])=>{
+    const c=buildDistColumn(x,z,r,h,lbl,desc2); scene.add(c); stageGroups[3].push(c);
+  });
+  // Ethanol tanks
+  const et1=buildTank(42,10,3.5,9,'Etanol Hidratado AEHC','96°GL. Combustível. 420 m³/dia.',MAT.bluePipe); scene.add(et1); stageGroups[3].push(et1);
+  const et2=buildTank(42,20,3.5,9,'Etanol Anidro AEAC','99,7°GL. Exportação.',MAT.bluePipe); scene.add(et2); stageGroups[3].push(et2);
+  // Vinhaça tank
+  const vt=buildTank(18,20,3,6,'Tanque Vinhaça','12 L/L etanol. Fertirrigação.',MAT.steelRust); scene.add(vt); stageGroups[3].push(vt);
+
+  // ── STAGE 4: Sugar ───────────────────────────────
+  // Evaporators (5 effect)
+  for(let i=0;i<5;i++){
+    const ev=buildEvaporator(-18+i*5,-12,i+1); scene.add(ev); stageGroups[4].push(ev);
+  }
+  // Vacuum pans (tachos)
+  const tachoDefs=[[-20,-22],[-12,-22],[-4,-22]];
+  tachoDefs.forEach(([x,z],i)=>{
+    const g=new THREE.Group(); scene.add(g); g.position.set(x,0,z);
+    const tPts=[new THREE.Vector2(.2,0),new THREE.Vector2(3,.6),new THREE.Vector2(3,4.5),new THREE.Vector2(2.6,5.5),new THREE.Vector2(.5,6)];
+    const tshell=new THREE.Mesh(new THREE.LatheGeometry(tPts,32), MAT.steelDark);
+    tshell.castShadow=true; g.add(tshell);
+    for(let y=1;y<5;y+=.8) flange(3.05,.05,MAT.steel,g,0,y,0);
+    // stirrer
+    mesh(new THREE.CylinderGeometry(.06,.06,5.5,8), MAT.steelNew, g, 0,.3,0);
+    for(let a=0;a<4;a++){const ang=a/4*Math.PI*2; mesh(new THREE.BoxGeometry(2.5,.07,.2),MAT.steelNew,g,0,2.5,0,0,ang,0);}
+    mesh(new THREE.CylinderGeometry(.3,.3,.7,16), MAT.steelDark, g, 0,6.8,0);
+    helixStair(3.1, 5.5, 1, MAT.steel, g);
+    // vapor pipe up
+    mesh(new THREE.CylinderGeometry(.25,.25,2,12), MAT.steel, g, 0,7,0);
+    g.userData={label:`Tacho de Cozimento ${i+1}`,desc:'Cristalização sacarose a vácuo. Massa cozida VHP.'}; stageGroups[4].push(g);
+    g.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=g.userData;}});
+  });
+
+  // Centrifuges (4)
+  [[-22,-32],[-17,-32],[-12,-32],[-7,-32]].forEach(([x,z])=>{
+    const c=buildCentrifuge(x,z); scene.add(c); stageGroups[4].push(c);
+  });
+
+  // Sugar silo
+  const ss=buildTank(-30,-18,4,14,'Silo de Açúcar VHP','99,7° pol. Estocagem a granel. Expedição.',MAT.white); scene.add(ss); stageGroups[4].push(ss);
+  // Rotary dryer
+  const drg=new THREE.Group(); scene.add(drg); drg.position.set(-6,-30,0);
+  const drc=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,8,20), MAT.steelDark);
+  drc.rotation.z=Math.PI/2; drc.castShadow=true; drg.add(drc);
+  mesh(new THREE.BoxGeometry(10,2.5,3), MAT.steelDark, drg, 0,.8,0);
+  drg.userData={label:'Secador Rotativo',desc:'Açúcar úmido → < 0,5% umidade. Temperatura 80°C.'}; stageGroups[4].push(drg);
+
+  // ── STAGE 5: Cogeneration ─────────────────────────
+  const b1=buildBoiler(48,-10); scene.add(b1); stageGroups[5].push(b1);
+  const b2=buildBoiler(48, 8); scene.add(b2); stageGroups[5].push(b2);
+
+  // Turbine
+  const turb=new THREE.Group(); scene.add(turb); turb.position.set(48,0,24);
+  mesh(new THREE.BoxGeometry(4,3.5,8), MAT.steelDark, turb, 0,1.75,0);
+  mesh(new THREE.BoxGeometry(3.6,3.1,7.6), MAT.steel, turb, 0,1.95,0);
+  // rotor
+  const rot=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,8.5,20), MAT.steelNew);
+  rot.position.set(0,2,0); rot.rotation.z=Math.PI/2; rot.castShadow=true; turb.add(rot);
+  // turbine blades (discs)
+  for(let i=0;i<7;i++){
+    const disc=new THREE.Mesh(new THREE.CylinderGeometry(1.4,.3,.15,24), MAT.steelNew);
+    disc.position.set(-3.2+i*1.1,2,0); disc.rotation.z=Math.PI/2; disc.castShadow=true; turb.add(disc);
+  }
+  turb.userData={label:'Turbina a Vapor',desc:'30 MW instalados. 67 kgf entrada, 2.5 kgf escape. Velocidade 3600 rpm.'};
+  turb.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=turb.userData;}});
+  stageGroups[5].push(turb);
+
+  // Generator
+  const gen=new THREE.Group(); scene.add(gen); gen.position.set(48,0,34);
+  mesh(new THREE.BoxGeometry(3,2.5,5), MAT.steelDark, gen, 0,1.25,0);
+  mesh(new THREE.CylinderGeometry(.6,.6,5.5,16), MAT.steel, gen, 0,1.5,0, 0,0,Math.PI/2);
+  mesh(new THREE.BoxGeometry(.5,.5,2), MAT.glowYellow, gen, 0,2.7,0);
+  gen.userData={label:'Gerador Elétrico',desc:'250 kWh/t cana. Excedente exportado à rede. ~30 MW contínuos.'};
+  gen.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;m.userData=gen.userData;}});
+  stageGroups[5].push(gen);
+
+  // Bagasse pile + conveyor to boilers
+  const bagPile=new THREE.Group(); scene.add(bagPile); bagPile.position.set(35,-5,0);
+  mesh(new THREE.CylinderGeometry(6,.5,5,24), MAT.bagasse, bagPile, 0,0,0);
+  bagPile.userData={label:'Pilha de Bagaço',desc:'Bagaço 50% umidade. Combustível das caldeiras 24/7.'}; stageGroups[5].push(bagPile);
+  const bagConv=buildConveyor(18,1.4,-.05); bagConv.position.set(42,-1,-2); bagConv.rotation.y=Math.PI/2; scene.add(bagConv); stageGroups[5].push(bagConv);
+}
+
+// ══════════════════════════════════════════════════════
+//  PIPE NETWORK (main runs)
+// ══════════════════════════════════════════════════════
+function buildPipeNetwork(){
+  const runs=[
+    // Steam header (red, high up)
+    {pts:[new THREE.Vector3(48,13,-5),new THREE.Vector3(48,13,10),new THREE.Vector3(20,13,10),new THREE.Vector3(-10,13,10)], r:.22, m:MAT.redPipe},
+    // Process juice (yellow-green)
+    {pts:[new THREE.Vector3(-6,.8,-3),new THREE.Vector3(-6,.8,6),new THREE.Vector3(2,.8,8)], r:.15, m:MAT.greenPipe},
+    // Clarified juice to evaps
+    {pts:[new THREE.Vector3(14,.8,5),new THREE.Vector3(-10,.8,5),new THREE.Vector3(-10,.8,-12)], r:.15, m:MAT.greenPipe},
+    // Wine to distillation
+    {pts:[new THREE.Vector3(10,2,28),new THREE.Vector3(18,2,28),new THREE.Vector3(18,2,12)], r:.15, m:MAT.bluePipe},
+    // Condensate return (blue)
+    {pts:[new THREE.Vector3(26,1,12),new THREE.Vector3(26,1,20),new THREE.Vector3(-5,1,20),new THREE.Vector3(-5,1,-12)], r:.1, m:MAT.bluePipe},
+    // Bagasse gas (gray)
+    {pts:[new THREE.Vector3(16,.8,-8),new THREE.Vector3(35,.8,-8),new THREE.Vector3(35,.8,-10)], r:.2, m:MAT.steelDark},
+  ];
+  runs.forEach(run=>{
+    for(let i=0;i<run.pts.length-1;i++){
+      pipe(run.pts[i], run.pts[i+1], run.r, run.m, null);
+      // Elbow at each junction (small sphere)
+      const s=new THREE.Mesh(new THREE.SphereGeometry(run.r*1.1,8,6), run.m);
+      s.position.copy(run.pts[i+1]); scene.add(s);
+    }
+    // Pipe hangers every 4m
+    run.pts.forEach((pt,i)=>{
+      if(i<run.pts.length-1){
+        const len=run.pts[i].distanceTo(run.pts[i+1]);
+        const steps=Math.floor(len/4);
+        for(let s2=0;s2<steps;s2++){
+          const tp=run.pts[i].clone().lerp(run.pts[i+1],(s2+.5)/steps);
+          if(tp.y>3){
+            mesh(new THREE.BoxGeometry(.04,.6,.04), MAT.steelDark, null, tp.x,tp.y+.4,tp.z);
+          }
+        }
+      }
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  PARTICLE SYSTEMS (steam + flow)
+// ══════════════════════════════════════════════════════
+const particleSystems=[];
+let particlesRunning=true;
+
+function buildParticles(){
+  // Steam from chimneys (boilers)
+  [[-5,30,-10],[5,30,8]].forEach(([x,y,z])=>{
+    particleSystems.push(createSteamCloud(x,y,z, 200, 1.0));
+  });
+  // Column top steam
+  [[18,14,12],[22,11,12],[26,16,12],[30,12,12],[34,14,12]].forEach(([x,h,z])=>{
+    particleSystems.push(createSteamCloud(x,h,z, 60, .4));
+  });
+  // Dorna vent steam
+  [[-8,8,25],[-2,8,25],[4,8,25],[-8,8,34],[-2,8,34],[4,8,34]].forEach(([x,h,z])=>{
+    particleSystems.push(createSteamCloud(x,h,z, 30, .25));
+  });
+}
+
+function createSteamCloud(x,y,z, count, size){
+  const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(count*3);
+  const vel=new Float32Array(count*3);
+  const life=new Float32Array(count);
+  const maxLife=new Float32Array(count);
+  for(let i=0;i<count;i++){
+    pos[i*3]  =x+(Math.random()-.5)*size;
+    pos[i*3+1]=y+Math.random()*size*2;
+    pos[i*3+2]=z+(Math.random()-.5)*size;
+    vel[i*3]  =(Math.random()-.5)*.03;
+    vel[i*3+1]=.02+Math.random()*.04;
+    vel[i*3+2]=(Math.random()-.5)*.03;
+    maxLife[i]=life[i]=Math.random()*3+1;
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat2=new THREE.PointsMaterial({color:0xc8d8e8,size:size*.6,transparent:true,opacity:.35,depthWrite:false});
+  const ps=new THREE.Points(geo,mat2); scene.add(ps);
+  return {ps,pos,vel,life,maxLife,x,y,z,size,count};
+}
+
+function updateParticles(){
+  if(!particlesRunning) return;
+  particleSystems.forEach(sys=>{
+    const arr=sys.ps.geometry.attributes.position.array;
+    for(let i=0;i<sys.count;i++){
+      sys.life[i]-=.016;
+      arr[i*3]  +=sys.vel[i*3];
+      arr[i*3+1]+=sys.vel[i*3+1];
+      arr[i*3+2]+=sys.vel[i*3+2];
+      sys.vel[i*3]+=(Math.random()-.5)*.002;
+      sys.vel[i*3+2]+=(Math.random()-.5)*.002;
+      if(sys.life[i]<=0){
+        arr[i*3]  =sys.x+(Math.random()-.5)*sys.size;
+        arr[i*3+1]=sys.y;
+        arr[i*3+2]=sys.z+(Math.random()-.5)*sys.size;
+        sys.vel[i*3]  =(Math.random()-.5)*.03;
+        sys.vel[i*3+1]=.02+Math.random()*.04;
+        sys.vel[i*3+2]=(Math.random()-.5)*.03;
+        sys.life[i]=sys.maxLife[i];
+      }
+    }
+    sys.ps.geometry.attributes.position.needsUpdate=true;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  SPINNING / ANIMATION
+// ══════════════════════════════════════════════════════
+const spinners=[]; // {mesh, axis, speed}
+let isRunning=true;
+
+// Boiler fire flicker
+const fireboxes=[];
+
+// ══════════════════════════════════════════════════════
+//  STAGE SYSTEM
+// ══════════════════════════════════════════════════════
+const STAGE_DATA=[
+  {label:'Recepção & Moagem',   cam:{theta:Math.PI*.55,phi:.32,r:75,tx:-18,ty:3,tz:-5},
+   eth:'—',sug:'—',stm:'40',eff:'20',
+   title:'Recepção & Moagem da Cana',
+   desc:'Cana em caminhões pesada na balança (80t). Pórtico empurra para mesa alimentadora. 5 ternos de moenda extraem 96% caldo por embebição. Bagaço (30%) → caldeiras.'},
+  {label:'Tratamento do Caldo', cam:{theta:Math.PI*.45,phi:.3,r:55,tx:10,ty:3,tz:8},
+   eth:'—',sug:'—',stm:'50',eff:'35',
+   title:'Tratamento & Clarificação do Caldo',
+   desc:'Caldo aquecido 70→105°C, caleagem pH 7.0. Clarificador contínuo: impurezas decantam. Torta de filtro rotativo → adubo. Caldo clarificado → 2 rotas (etanol + açúcar).'},
+  {label:'Fermentação',         cam:{theta:Math.PI*.4,phi:.3,r:60,tx:-2,ty:3,tz:30},
+   eth:'180',sug:'—',stm:'60',eff:'55',
+   title:'Fermentação Contínua',
+   desc:'Mosto (caldo + melaço) alimenta 6 dornas. Saccharomyces cerevisiae converte sacarose em etanol + CO₂. Ciclo 6–10h. Vinho com 8–12% etanol enviado para destilação.'},
+  {label:'Destilação',          cam:{theta:Math.PI*.3,phi:.28,r:65,tx:26,ty:5,tz:12},
+   eth:'420',sug:'—',stm:'80',eff:'72',
+   title:'Destilação — Etanol Hidratado & Anidro',
+   desc:'Colunas A/A1/B/B1/D separam etanol do vinho. AEHC 96°GL (mistura gasolina). AEAC 99,7°GL (exportação). Vinhaça (12L/L etanol) → fertirrigação com K, Ca, Mg.'},
+  {label:'Cozimento & Açúcar',  cam:{theta:Math.PI*.6,phi:.3,r:65,tx:-15,ty:4,tz:-22},
+   eth:'420',sug:'360',stm:'90',eff:'85',
+   title:'Evaporação, Cozimento & Cristalização',
+   desc:'5 evaporadores múltiplo-efeito: 15→65 Brix. Tachos a vácuo cristalizam sacarose. Centrífugas 1200rpm separam cristais. Secador rotativo → açúcar VHP 99,7° pol.'},
+  {label:'Cogeração',           cam:{theta:Math.PI*.2,phi:.26,r:75,tx:48,ty:5,tz:5},
+   eth:'420',sug:'360',stm:'120',eff:'98',
+   title:'Cogeração — Bagaço → Vapor → Energia',
+   desc:'Bagaço queima em caldeiras 67 kgf/cm² · 520°C. Vapor move turbina de 30 MW. Energia excedente vendida à rede. Vapor escape (2,5 kgf) supre todo processo. 250 kWh/t cana.'},
+];
+
+let currentStage=0, autoTour=false, autoTimer=null;
+
+function focusStage(idx){
+  currentStage=idx;
+  const sd=STAGE_DATA[idx];
+
+  document.querySelectorAll('.sr').forEach((r,i)=>r.classList.toggle('on',i===idx));
+  document.querySelectorAll('.ss').forEach((s,i)=>{
+    s.textContent=i===idx?'ATIVO':'IDLE';
+    s.className='ss'+(i===idx?' run':'');
+  });
+  document.getElementById('info-title').textContent=sd.title;
+  document.getElementById('info-desc').textContent=sd.desc;
+  document.getElementById('t-eth').textContent=sd.eth+' m³/dia';
+  document.getElementById('t-sug').textContent=sd.sug+' t/dia';
+  document.getElementById('t-stm').textContent=sd.stm+' t/h';
+  document.getElementById('t-eff').textContent=sd.eff+'%';
+  document.getElementById('t-bar').style.width=sd.eff+'%';
+  document.getElementById('t-stage').textContent=sd.label.toUpperCase();
+
+  const badge=document.getElementById('sbadge'),txt=document.getElementById('sbadge-txt');
+  txt.textContent=sd.label.toUpperCase(); badge.style.opacity='1';
+  setTimeout(()=>badge.style.opacity='0',2800);
+
+  // Smooth camera
+  const c=sd.cam;
+  orb.targetTheta=c.theta; orb.targetPhi=c.phi; orb.targetRadius=c.r;
+  orb.targetTx=c.tx; orb.targetTy=c.ty; orb.targetTz=c.tz;
+}
+
+window.focusStage=focusStage;
+window.nextStage=()=>focusStage((currentStage+1)%STAGE_DATA.length);
+window.resetCam=()=>{ orb.targetTheta=Math.PI*.35; orb.targetPhi=.28; orb.targetRadius=85; orb.targetTx=0; orb.targetTy=3; orb.targetTz=0; };
+window.toggleRun=()=>{
+  isRunning=!isRunning; particlesRunning=isRunning;
+  document.getElementById('btnRun').textContent=isRunning?'⏸ PAUSAR':'▶ RETOMAR';
+  document.getElementById('btnRun').classList.toggle('on',isRunning);
+};
+window.toggleAuto=()=>{
+  autoTour=!autoTour;
+  document.getElementById('btnAuto').classList.toggle('on',autoTour);
+  if(autoTour) autoTimer=setInterval(()=>focusStage((currentStage+1)%STAGE_DATA.length),5500);
+  else clearInterval(autoTimer);
+};
+
+// ── Tooltip / Raycaster ──────────────────────────────
+const raycaster=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
+renderer.domElement.addEventListener('mousemove', e=>{
+  mouse.x=(e.clientX/window.innerWidth)*2-1;
+  mouse.y=-(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(scene.children,true);
+  const tip=document.getElementById('tooltip');
+  const hit=hits.find(h=>h.object?.userData?.label);
+  if(hit){
+    document.getElementById('tt-name').textContent=hit.object.userData.label;
+    document.getElementById('tt-desc').textContent=hit.object.userData.desc||'';
+    tip.style.cssText=`display:block;left:${e.clientX+14}px;top:${e.clientY-10}px`;
+  } else { tip.style.display='none'; }
+});
+renderer.domElement.addEventListener('click', e=>{
+  mouse.x=(e.clientX/window.innerWidth)*2-1;
+  mouse.y=-(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(scene.children,true);
+  const hit=hits.find(h=>h.object?.userData?.label);
+  // find which stage group this belongs to
+  if(hit){
+    stageGroups.forEach((grps,si)=>{
+      grps.forEach(gg=>{
+        if(gg.children){
+          gg.traverse(ch=>{ if(ch===hit.object) focusStage(si); });
+        }
+      });
+    });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  RENDER LOOP
+// ══════════════════════════════════════════════════════
+let frameN=0;
+function animate(){
+  requestAnimationFrame(animate);
+  frameN++;
+  if(isRunning){
+    updateParticles();
+    // Boiler flicker
+    if(frameN%5===0){
+      scene.traverse(m=>{
+        if(m.isMesh && m.material===MAT.firebox){
+          m.material.emissiveIntensity=1.0+Math.random()*1.2;
+          m.material.opacity=.4+Math.random()*.4;
+        }
+      });
+    }
+  }
+  updateCamera();
+  renderer.render(scene,camera);
+}
+
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+document.getElementById('lstat').textContent='construindo planta...';
+buildGround();
+setTimeout(()=>{
+  document.getElementById('lstat').textContent='modelando equipamentos...';
+  buildPlant();
+  setTimeout(()=>{
+    document.getElementById('lstat').textContent='conectando tubulações...';
+    buildPipeNetwork();
+    setTimeout(()=>{
+      document.getElementById('lstat').textContent='iniciando partículas de vapor...';
+      buildParticles();
+      focusStage(0);
+      animate();
+      setTimeout(()=>{
+        const l=document.getElementById('loading');
+        l.style.opacity='0';
+        setTimeout(()=>l.style.display='none',800);
+      },600);
+    },200);
+  },300);
+},100);
+</script>
+</body>
+</html>
